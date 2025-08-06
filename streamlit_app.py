@@ -3,6 +3,7 @@ import streamlit as st
 import numpy as np
 import pandas as pd
 import os
+import random
 from sklearn.datasets import load_breast_cancer
 from sklearn.preprocessing import StandardScaler
 from tensorflow.keras.models import load_model
@@ -36,42 +37,58 @@ feature_names = data.feature_names
 
 
 scaler = StandardScaler()
-scaler.fit(X)  # 스케일러는 학습 데이터 기준으로 fit
+scaler.fit(X)
 
 
 # ----------------------------------------
 # 3. Streamlit UI
 # ----------------------------------------
 st.title("유방암 진단 예측기 (Breast Cancer Predictor)")
+
+
 if model:
     st.markdown(f"불러온 모델: `{os.path.basename(latest_model_path)}`")
 else:
     st.error("저장된 모델을 찾을 수 없습니다. 학습을 먼저 진행하세요.")
 
 
-st.sidebar.header("입력값을 설정하세요")
+# ----------------------------------------
+# 4. 입력: 랜덤 샘플 선택 및 입력값 표시
+# ----------------------------------------
+st.sidebar.header("입력값 설정")
 
 
-# 사용자 입력값 (슬라이더로 30개 특성)
+# 초기값 설정
+if "random_sample" not in st.session_state:
+    st.session_state.random_sample = X[random.randint(0, X.shape[0] - 1)]
+
+
+# 샘플 무작위 선택 버튼
+if st.sidebar.button("샘플 랜덤 선택"):
+    st.session_state.random_sample = X[random.randint(0, X.shape[0] - 1)]
+
+
+# 현재 샘플 입력값 표시
 user_input = []
 for i, feature in enumerate(feature_names):
-    val = st.sidebar.slider(
+    val = st.sidebar.number_input(
         label=feature,
         min_value=float(X[:, i].min()),
         max_value=float(X[:, i].max()),
-        value=float(X[:, i].mean()),
-        format="%.2f"
+        value=float(st.session_state.random_sample[i]),
+        format="%.2f",
+        key=f"feature_{i}"
     )
     user_input.append(val)
 
 
+# ----------------------------------------
+# 5. 예측 수행
+# ----------------------------------------
 user_array = np.array(user_input).reshape(1, -1)
 scaled_input = scaler.transform(user_array)
 
 
-# ----------------------------------------
-# 4. 예측 수행
-# ----------------------------------------
 if st.button("예측 실행") and model:
     pred_prob = model.predict(scaled_input)[0][0]
     pred_class = int(pred_prob > 0.5)
@@ -86,6 +103,8 @@ if st.button("예측 실행") and model:
         st.error("악성(Malignant) 가능성이 높습니다.")
     else:
         st.success("양성(Benign) 가능성이 높습니다.")
+
+
 
 
 
